@@ -10,38 +10,42 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include "Chorus.h"
+#include <memory>
+
 
 //==============================================================================
 /**
 */
-class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, private juce::Slider::Listener
+class ChorusPedalAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
-    NewProjectAudioProcessorEditor (NewProjectAudioProcessor&);
-    ~NewProjectAudioProcessorEditor() override;
+    ChorusPedalAudioProcessorEditor (ChorusPedalAudioProcessor& p);
+    ~ChorusPedalAudioProcessorEditor() override;
+    
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    juce::AudioDeviceManager manager;
-    juce::AudioProcessorPlayer player;
-    void sliderValueChanged (juce::Slider* slider) override;
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-    NewProjectAudioProcessor& audioProcessor;
-    Chorus chorus;
+    ChorusPedalAudioProcessor& audioProcessor;
     
     juce::Slider depthSlider;
     juce::Slider rateSlider;
     juce::Slider delayTimeSlider;
     juce::Slider feedbackSlider;
-    juce::Label depthLabel;
-    juce::Label rateLabel;
-    juce::Label delayTimeLabel;
-    juce::Label feedbackLabel;
+    juce::Slider intensitySlider;
+    juce::Slider mixSlider;
+    
+    juce::ToggleButton bypassButton;
+    
+    std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;
+    std::vector<std::unique_ptr<ButtonAttachment>> buttonAttachments;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChorusPedalAudioProcessorEditor)
 };

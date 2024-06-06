@@ -1,38 +1,20 @@
-/*
-  ==============================================================================
-
-    Chorus.h
-    Created: 30 May 2024 8:55:41am
-    Author:  Alex Mixon
-
-  ==============================================================================
-*/
-
 #pragma once
 #include <JuceHeader.h>
-
 class Chorus
 {
 public:
-    Chorus(int sampleRate);
+    Chorus();
     ~Chorus();
 
-    void setNumVoices(int numVoices);
-    void setDelayTimes(const std::vector<float>& delayTimes);
-    void setModulationDepth(float depth);
-    void setModulationRate(float rate);
-    void setFeedback(float feedback);
+    void process(const juce::AudioBuffer<float>& x, juce::AudioBuffer<float>& y,
+                         float fs, float depth, float rate, float delayTime, float feedback,
+                         float intensity, float mix);
 
-    void process(float* inputBuffer, float* outputBuffer, int bufferSize);
+    void reset();
+
+    void setSampleRate(double sampleRate);
 
 private:
-    int m_sampleRate;
-    int m_numVoices;
-    float m_modulationDepth;
-    float m_modulationRate;
-    float m_feedback;
-
-    std::vector<std::vector<float>> m_delayLines;
-    std::vector<int> m_delayIndices;
-    float m_phase;
+//    void processChannel(float* channelData, int numSamples, float fs, float depth, float rate, int delaySamples, float feedback);
 };
+

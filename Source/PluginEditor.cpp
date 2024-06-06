@@ -8,110 +8,75 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "Chorus.h"
-
+#include <JuceHeader.h>
 //==============================================================================
-NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p), chorus(48000)
+ChorusPedalAudioProcessorEditor::ChorusPedalAudioProcessorEditor (ChorusPedalAudioProcessor& p)
+    : AudioProcessorEditor (&p), audioProcessor (p)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (1000, 500);
+    setSize (600, 300);
     
-    depthSlider.setSliderStyle (juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    depthSlider.setRange (0.0, 1.0);
-    depthSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 90, 0);
-    depthSlider.setPopupDisplayEnabled (true, false, this);
-    depthSlider.setTextValueSuffix (" Depth");
-    depthSlider.setValue(0.5);
-    
+    depthSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    depthSlider.setBounds(10, 50, 75, 75);
+    depthSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
     addAndMakeVisible(depthSlider);
     
-    depthSlider.addListener(this);
-    
-    rateSlider.setSliderStyle (juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    rateSlider.setRange (0.0, 5.0);
-    rateSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 90, 0);
-    rateSlider.setPopupDisplayEnabled (true, false, this);
-    rateSlider.setTextValueSuffix (" Rate");
-    rateSlider.setValue(1.0);
-    
+    rateSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    rateSlider.setBounds(10, 150, 75, 75);
+    rateSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
     addAndMakeVisible(rateSlider);
     
-    rateSlider.addListener(this);
+    intensitySlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    intensitySlider.setBounds(175, 150, 75, 75);
+    intensitySlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
+    addAndMakeVisible(intensitySlider);
     
-    delayTimeSlider.setSliderStyle (juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    delayTimeSlider.setRange (0.0, 5.0);
-    delayTimeSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 90, 0);
-    delayTimeSlider.setPopupDisplayEnabled (true, false, this);
-    delayTimeSlider.setTextValueSuffix (" Delay Time");
-    delayTimeSlider.setValue(1.0);
-    
+    delayTimeSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    delayTimeSlider.setBounds(350, 150, 75, 75);
+    delayTimeSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
     addAndMakeVisible(delayTimeSlider);
     
-    delayTimeSlider.addListener(this);
-    
-    feedbackSlider.setSliderStyle (juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-    feedbackSlider.setRange (0.0, 1.0);
-    feedbackSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 90, 0);
-    feedbackSlider.setPopupDisplayEnabled (true, false, this);
-    feedbackSlider.setTextValueSuffix (" Feedback");
-    feedbackSlider.setValue(0.0);
-    
+    feedbackSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    feedbackSlider.setBounds(510, 50, 75, 75);
+    feedbackSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
     addAndMakeVisible(feedbackSlider);
     
-    feedbackSlider.addListener(this);
+    mixSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    mixSlider.setBounds(510, 150, 75, 75);
+    mixSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
+    addAndMakeVisible(mixSlider);
     
+    bypassButton.setBounds(290, 100, 50, 20);
+    addAndMakeVisible(bypassButton);
     
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB1", depthSlider));
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB2", rateSlider));
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB3", intensitySlider));
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB4", delayTimeSlider));
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB5", feedbackSlider));
+    sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB6", mixSlider));
     
+    buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
 }
 
-NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
+ChorusPedalAudioProcessorEditor::~ChorusPedalAudioProcessorEditor()
 {
 }
 
 //==============================================================================
-void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
+void ChorusPedalAudioProcessorEditor::paint (juce::Graphics& g)
 {
-//     (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
+    // (Our component is opaque, so we must completely fill the background with a solid colour)
+    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
-    g.setColour (juce::Colours::black);
-    g.setFont (25.0f);
-    g.drawFittedText ("Chorus", getLocalBounds(), juce::Justification::centred, 1);
-    
-    g.setFont(15.0f);
-    g.drawText ("Depth", 150, 200, 100, getHeight() - 60, juce::Justification::left, false);
-    g.drawText ("Rate", 400, 200, 100, getHeight() - 60, juce::Justification::left, false);
-    g.drawText ("Delay Time", 600, 200, 100, getHeight() - 60, juce::Justification::left, false);
-    g.drawText ("Feedback", 850, 200, 100, getHeight() - 60, juce::Justification::left, false);
+    g.setColour (juce::Colours::white);
+    g.setFont (40.0f);
+    g.drawFittedText ("Mixon Chorus", getLocalBounds().removeFromTop(75), juce::Justification::centred, 1);
 }
 
-void NewProjectAudioProcessorEditor::resized()
+void ChorusPedalAudioProcessorEditor::resized()
 {
-    depthSlider.setBounds (150, 100, 100, getHeight() - 60);
-    
-    rateSlider.setBounds (400, 100, 100, getHeight() - 60);
-    
-    delayTimeSlider.setBounds (600, 100, 100, getHeight() - 60);
-    
-    feedbackSlider.setBounds (850, 100, 100, getHeight() - 60);
+    // This is generally where you'll want to lay out the positions of any
+    // subcomponents in your editor..
 }
-void NewProjectAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
-{
-    if(slider == &depthSlider) {
-        chorus.setModulationDepth(depthSlider.getValue());
-    }
-    if(slider == &rateSlider) {
-        chorus.setModulationRate(rateSlider.getValue());
-    }
-//    if(slider == &delayTimeSlider) {
-//        audioProcessor.chorusDelayTime = delayTimeSlider.getValue();
-//    }
-    if(slider == &feedbackSlider) {
-        chorus.setFeedback(feedbackSlider.getValue());
-    }
-}
-
-
-
