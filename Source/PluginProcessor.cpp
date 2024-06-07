@@ -35,15 +35,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChorusPedalAudioProcessor::c
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB1", 1}, "Depth", 0.f, 1.f, 0.5));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB2", 2}, "Rate", 0.f, 20.f, 1.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB2", 2}, "Rate", 0.1f, 10.f, 1.f));
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB3", 3}, "Intensity", 0.f, 1.f, 0.5));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB4", 4}, "Delay Time", 0.f, 0.03, 0.1));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB4", 4}, "Delay Time", 5.f, 50.f, 10.f));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB5", 5}, "Feedback", 0.f, 1.f, 0.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB5", 5}, "Feedback", 0.f, 100.f, 0.f));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB6", 6}, "Mix", 0.f, 1.f, 0.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB6", 6}, "Mix", 0.f, 100.f, 0.f));
     
     params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"BUTTON1", 7}, "Bypass", false));
     
@@ -155,28 +155,27 @@ void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
 {
     const int numSamples = buffer.getNumSamples();
     const float sampleRate = getSampleRate();
+    int numChannels = buffer.getNumChannels();
+    
+    for (auto i = 0; i < numChannels; ++i)
+    {
+        buffer.clear (i, 0, buffer.getNumSamples());
+    }
     
     float depth = *apvts.getRawParameterValue("KNOB1");
     float rate = *apvts.getRawParameterValue("KNOB2");
     float intensity = *apvts.getRawParameterValue("KNOB3");
-    float delayTime = *apvts.getRawParameterValue("KNOB4");
-    float feedback = *apvts.getRawParameterValue("KNOB5");
-    float mix = *apvts.getRawParameterValue("KNOB6");
+    float delayTime = *apvts.getRawParameterValue("KNOB4") / 1000;
+    float feedback = *apvts.getRawParameterValue("KNOB5") / 100;
+    float mix = *apvts.getRawParameterValue("KNOB6") / 100;
     
     bool bypass = *apvts.getRawParameterValue("BUTTON1") > 0.5f ? true : false;
     
 
     // Apply chorus effect
     if(!bypass) {
-        juce::AudioBuffer<float> processedBuffer(buffer.getNumChannels(), numSamples);
-            chorus.process(buffer, processedBuffer, sampleRate, depth, rate, delayTime, feedback, intensity, mix);
-
-            // Copy the processed audio back to the original buffer
-            buffer = processedBuffer;
+            chorus.process(buffer, sampleRate, depth, rate, delayTime, feedback, intensity, mix);
         }
-    else {
-        buffer = buffer;
-    }
 }
 
 

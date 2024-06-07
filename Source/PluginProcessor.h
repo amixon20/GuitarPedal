@@ -9,7 +9,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "Chorus.h"
+#include "DSP/Chorus.h"
 
 //==============================================================================
 /**
@@ -68,7 +68,7 @@ private:
     float lfoPhaseR;
     double sampleRate;
     int samplesPerBlock;
-    int maxDelaySamples = 4800;
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChorusPedalAudioProcessor)
 };
