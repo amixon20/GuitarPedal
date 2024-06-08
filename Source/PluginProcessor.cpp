@@ -21,7 +21,8 @@ ChorusPedalAudioProcessor::ChorusPedalAudioProcessor()
                      #endif
                        ),
 #endif
-apvts(*this, nullptr, "params", createParams()), chorus()
+maxDelay(sampleRate * .03),
+apvts(*this, nullptr, "params", createParams()), chorus(maxDelay, getSampleRate())
 {
 }
 
@@ -174,7 +175,7 @@ void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
 
     // Apply chorus effect
     if(!bypass) {
-            chorus.process(buffer, sampleRate, depth, rate, delayTime, feedback, intensity, mix);
+            chorus.process(buffer, depth, rate, delayTime, feedback, intensity, mix);
         }
 }
 

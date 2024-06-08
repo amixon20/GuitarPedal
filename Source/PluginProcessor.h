@@ -10,7 +10,7 @@
 
 #include <JuceHeader.h>
 #include "DSP/Chorus.h"
-
+#include "SharedImages.h"
 //==============================================================================
 /**
 */
@@ -55,13 +55,19 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     juce::AudioProcessorValueTreeState apvts;
+    
+    SharedImages* getSharedImagesPtr() { return m_pSharedImagesPtr; };
+    
 
 private:
+    
+    juce::SharedResourcePointer<SharedImages>     m_pSharedImagesPtr;
     
     int ParameterVersionHint = 1;
     
     juce::AudioProcessorValueTreeState::ParameterLayout createParams();
     
+    double maxDelay;
     
     Chorus chorus;
     float lfoPhaseL;

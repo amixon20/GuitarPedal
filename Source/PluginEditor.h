@@ -36,13 +36,13 @@ private:
     // access the processor object that created it.
     ChorusPedalAudioProcessor& audioProcessor;
     
-//    MainComponent mainComponent;
+    MainComponent mainComponent;
     
-    juce::Slider depthSlider, rateSlider, intensitySlider,
-            delayTimeSlider, feedbackSlider, mixSlider;
-    
-    juce::ToggleButton bypassButton;
-    
+//    juce::Slider depthSlider, rateSlider, intensitySlider,
+//            delayTimeSlider, feedbackSlider, mixSlider;
+//    
+//    juce::ToggleButton bypassButton;
+//    
     juce::Label depthLabel, rateLabel, intensityLabel, delayTimeLabel, feedbackLabel, mixLabel, bypassLabel;
     
     std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;

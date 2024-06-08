@@ -12,7 +12,9 @@
 
 #include <JuceHeader.h>
 #include "../PluginProcessor.h"
-#include "CustomSlider.h"
+#include "../SharedImages.h"
+#include "SliderWidgets.h"
+#include "ButtonWidget.h"
 //==============================================================================
 /*
 */
@@ -31,10 +33,18 @@ public:
     void paint (juce::Graphics& g) override;
 
 private:
+    
     ChorusPedalAudioProcessor& audioProcessor;
-    CustomSlider depthSlider, rateSlider, intensitySlider,
+    
+    SharedImages*               m_pSharedImages;
+    
+    BigKnob depthSlider, rateSlider, intensitySlider,
             delayTimeSlider, feedbackSlider, mixSlider;
-    juce::ToggleButton bypassButton;
+    
+    HitPads bypassButton;
+    
+    std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;
+    
     std::vector<std::unique_ptr<ButtonAttachment>> buttonAttachments;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent);
