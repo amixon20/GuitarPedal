@@ -21,13 +21,31 @@ ChorusPedalAudioProcessor::ChorusPedalAudioProcessor()
                      #endif
                        ),
 #endif
-maxDelay(sampleRate * .03),
-apvts(*this, nullptr, "params", createParams()), chorus(maxDelay, getSampleRate())
+apvts(*this, nullptr, "params", createParams())
+//maxDelay(getSampleRate() * .03), chorus(maxDelay, getSampleRate())
 {
+    lfoPhase = 0;
+    
+    ringBufferLeft = nullptr;
+    ringBufferRight = nullptr;
+    
+    ringBufferWriteHead = 0;
+    ringBufferLength = 0;
+    
+    feedbackLeft = 0;
+    feedbackRight = 0;
 }
 
 ChorusPedalAudioProcessor::~ChorusPedalAudioProcessor()
 {
+    if(ringBufferLeft != nullptr) {
+        delete [] ringBufferLeft;
+        ringBufferLeft = nullptr;
+    }
+    if(ringBufferRight != nullptr) {
+        delete [] ringBufferRight;
+        ringBufferRight = nullptr;
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout ChorusPedalAudioProcessor::createParams()
@@ -42,9 +60,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChorusPedalAudioProcessor::c
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB4", 4}, "Delay Time", 5.f, 50.f, 10.f));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB5", 5}, "Feedback", 0.f, 100.f, 0.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB5", 5}, "Feedback", 0.f, 98.f, 0.f));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB6", 6}, "Mix", 0.f, 100.f, 0.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB6", 6}, "Mix", 0.f, 100.f, 50.f));
     
     params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"BUTTON1", 7}, "Bypass", false));
     
@@ -116,8 +134,30 @@ void ChorusPedalAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void ChorusPedalAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    
+    depth.reset(sampleRate, 0.0005);
+    rate.reset(sampleRate, 0.0005);
+    delayTime.reset(sampleRate, 0.0005);
+    feedback.reset(sampleRate, 0.0005);
+    mix.reset(sampleRate, 0.0005);
+    
+    lfoPhase = 0;
+    
+    ringBufferLength = sampleRate * MAX_DELAY_TIME;
+    
+    if(ringBufferLeft == nullptr) {
+        ringBufferLeft = new float[ringBufferLength];
+    }
+    
+    juce::zeromem(ringBufferLeft, ringBufferLength * sizeof(float));
+    
+    if(ringBufferRight == nullptr) {
+        ringBufferRight = new float[ringBufferLength];
+    }
+    
+    juce::zeromem(ringBufferRight, ringBufferLength * sizeof(float));
+    
+    ringBufferWriteHead = 0;
 }
 
 void ChorusPedalAudioProcessor::releaseResources()
@@ -154,31 +194,138 @@ bool ChorusPedalAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 
 void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    const int numSamples = buffer.getNumSamples();
-    const float sampleRate = getSampleRate();
-    int numChannels = buffer.getNumChannels();
     
-    for (auto i = 0; i < numChannels; ++i)
+    juce::ScopedNoDenormals noDenormals;
+    auto totalNumInputChannels = getTotalNumInputChannels();
+    auto totalNumOutputChannels = getTotalNumOutputChannels();
+    
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
     {
         buffer.clear (i, 0, buffer.getNumSamples());
     }
     
-    float depth = *apvts.getRawParameterValue("KNOB1");
-    float rate = *apvts.getRawParameterValue("KNOB2");
-    float intensity = *apvts.getRawParameterValue("KNOB3");
-    float delayTime = *apvts.getRawParameterValue("KNOB4") / 1000;
-    float feedback = *apvts.getRawParameterValue("KNOB5") / 100;
-    float mix = *apvts.getRawParameterValue("KNOB6") / 100;
+    auto d = apvts.getRawParameterValue("KNOB1")->load();
+    depth.setTargetValue(d);
+    auto r = apvts.getRawParameterValue("KNOB2")->load();
+    rate.setTargetValue(r);
+    auto dt = apvts.getRawParameterValue("KNOB4")->load() / 1000;
+    delayTime.setTargetValue(dt);
+    auto fb = apvts.getRawParameterValue("KNOB5")->load() / 100;
+    feedback.setTargetValue(fb);
+    auto m = apvts.getRawParameterValue("KNOB6")->load() / 100;
+    mix.setTargetValue(m);
     
     bool bypass = *apvts.getRawParameterValue("BUTTON1") > 0.5f ? true : false;
     
-
-    // Apply chorus effect
-    if(!bypass) {
-            chorus.process(buffer, depth, rate, delayTime, feedback, intensity, mix);
+    if(bypass)
+    {
+        return;
+    }
+    
+    float* leftChannel = buffer.getWritePointer(0);
+    float* rightChannel = buffer.getWritePointer(1);
+    
+    float phaseOffset = 0.0f;
+    float lfoRate = rate.getNextValue();
+    float phaseOffsetIncrement = lfoRate / getSampleRate();
+    
+    for(int i = 0; i < buffer.getNumSamples(); i++) {
+        // Writing to buffer and adding feedback
+        ringBufferLeft[ringBufferWriteHead] = leftChannel[i] + feedbackLeft;
+        ringBufferRight[ringBufferWriteHead] = rightChannel[i] + feedbackRight;
+        
+        // Calculating delay for left channel with LFO
+        float lfoOutLeft = sin(2 * M_PI * lfoPhase);
+        lfoOutLeft *= depth.getNextValue();
+        
+        // Calculating delay for right channel with LFO + offset
+        float lfoPhaseRight = lfoPhase + phaseOffset;
+        
+        phaseOffset += phaseOffsetIncrement;
+        
+        if(lfoPhaseRight > 1) {
+            lfoPhaseRight -= 1;
         }
+        
+        float lfoOutRight = sin(2 * M_PI * lfoPhaseRight);
+        lfoOutRight *= depth.getNextValue();
+        
+        float lfoOutMappedLeft = 0;
+        float lfoOutMappedRight = 0;
+        
+        // Updating LFO phase
+        lfoPhase += rate.getNextValue() / getSampleRate();
+        
+        
+        
+        lfoOutMappedLeft = juce::jmap<float>(lfoOutLeft, -1.f, 1.f, 0.005f, 0.03f);
+        lfoOutMappedRight = juce::jmap<float>(lfoOutRight, -1.f, 1.f, 0.005f, 0.03f);
+        
+        
+        float delayTimeSamplesLeft = getSampleRate() * lfoOutMappedLeft;
+        float delayTimeSamplesRight = getSampleRate() * lfoOutMappedRight;
+        
+        if(lfoPhase > 1) {
+            lfoPhase -= 1;
+        }
+        
+        // Calculating read head for left channel delay sample
+        float delayReadHeadLeft = ringBufferWriteHead - delayTimeSamplesLeft;
+        
+        if(delayReadHeadLeft < 0) {
+            delayReadHeadLeft += ringBufferLength;
+        }
+        
+        int readHeadLeft_x = (int) delayReadHeadLeft;
+        int readHeadLeft_x1 = readHeadLeft_x + 1;
+        float readHeadFloatLeft = delayReadHeadLeft - readHeadLeft_x;
+        
+        if(readHeadLeft_x1 >= ringBufferLength) {
+            readHeadLeft_x1 -= ringBufferLength;
+        }
+        
+        // Calculating read head for right channel delay sample
+        float delayReadHeadRight = ringBufferWriteHead - delayTimeSamplesRight;
+        
+        if(delayReadHeadRight < 0) {
+            delayReadHeadRight += ringBufferLength;
+        }
+        
+        int readHeadRight_x = (int) delayReadHeadRight;
+        int readHeadRight_x1 = readHeadRight_x + 1;
+        float readHeadFloatRight = delayReadHeadRight - readHeadRight_x;
+        
+        if(readHeadRight_x1 >= ringBufferLength) {
+            readHeadRight_x1 -= ringBufferLength;
+        }
+        
+        // Interpolating delay samples from current read head positions for both channels
+        float delay_sample_left = lin_interp(ringBufferLeft[readHeadLeft_x], ringBufferLeft[readHeadLeft_x1], readHeadFloatLeft);
+        float delay_sample_right = lin_interp(ringBufferRight[readHeadRight_x], ringBufferRight[readHeadRight_x1], readHeadFloatRight);
+        
+        // Calculating feedback samples
+        feedbackLeft = delay_sample_left * feedback.getNextValue();
+        feedbackRight = delay_sample_right * feedback.getNextValue();
+        
+        // Updating buffer write head
+        ringBufferWriteHead++;
+        
+        if(ringBufferWriteHead >= ringBufferLength) {
+            ringBufferWriteHead = 0;
+        }
+        
+        // Mixing sample between dry and wet signal
+        float dryAmount = 1 - mix.getNextValue();
+        float wetAmount = mix.getNextValue();
+        
+        buffer.setSample(0, i, buffer.getSample(0, i) * dryAmount + delay_sample_left * wetAmount);
+        buffer.setSample(1, i, buffer.getSample(1, i) * dryAmount + delay_sample_right * wetAmount);
+    }
 }
-
+float ChorusPedalAudioProcessor::lin_interp(float sample_x, float sample_x1, float inPhase)
+{
+    return (1 - inPhase) * sample_x + inPhase * sample_x1;
+}
 
 //==============================================================================
 bool ChorusPedalAudioProcessor::hasEditor() const

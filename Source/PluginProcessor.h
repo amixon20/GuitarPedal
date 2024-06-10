@@ -9,8 +9,8 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "DSP/Chorus.h"
 #include "SharedImages.h"
+#define MAX_DELAY_TIME 0.05
 //==============================================================================
 /**
 */
@@ -58,22 +58,33 @@ public:
     
     SharedImages* getSharedImagesPtr() { return m_pSharedImagesPtr; };
     
+    float lin_interp(float sample_x, float sample_x1, float inPhase);
+    
 
 private:
     
     juce::SharedResourcePointer<SharedImages>     m_pSharedImagesPtr;
     
-    int ParameterVersionHint = 1;
-    
     juce::AudioProcessorValueTreeState::ParameterLayout createParams();
     
-    double maxDelay;
+//    double maxDelay;
     
-    Chorus chorus;
-    float lfoPhaseL;
-    float lfoPhaseR;
-    double sampleRate;
-    int samplesPerBlock;
+    juce::LinearSmoothedValue<float> depth;
+    juce::LinearSmoothedValue<float> rate;
+    juce::LinearSmoothedValue<float> feedback;
+    juce::LinearSmoothedValue<float> delayTime;
+    juce::LinearSmoothedValue<float> mix;
+    
+    float lfoPhase;
+    
+    float feedbackLeft;
+    float feedbackRight;
+        
+    int ringBufferWriteHead;
+    int ringBufferLength;
+        
+    float* ringBufferLeft;
+    float* ringBufferRight;
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChorusPedalAudioProcessor)

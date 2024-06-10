@@ -10,8 +10,6 @@
 
 #include <JuceHeader.h>
 #include "MainComponent.h"
-#include "CustomSlider.h"
-#include "CustomLookAndFeel.h"
 //==============================================================================
 MainComponent::MainComponent(ChorusPedalAudioProcessor& processor)
     : audioProcessor(processor),
@@ -23,23 +21,47 @@ MainComponent::MainComponent(ChorusPedalAudioProcessor& processor)
     feedbackSlider (m_pSharedImages),
     mixSlider (m_pSharedImages),
     bypassButton (m_pSharedImages)
-
-//    depthSlider("Depth", "KNOB1", audioProcessor.apvts),
-//    rateSlider("Rate", "KNOB2", audioProcessor.apvts),
-//    intensitySlider("Intensity", "KNOB3", audioProcessor.apvts),
-//    delayTimeSlider("Delay Time", "KNOB4", audioProcessor.apvts),
-//    feedbackSlider("Feedback", "KNOB5", audioProcessor.apvts),
-//    mixSlider("Mix", "KNOB6", audioProcessor.apvts)
 {
 
     
     addAndMakeVisible(depthSlider);
     addAndMakeVisible(rateSlider);
-    addAndMakeVisible(intensitySlider);
     addAndMakeVisible(delayTimeSlider);
     addAndMakeVisible(feedbackSlider);
     addAndMakeVisible(mixSlider);
     addAndMakeVisible(bypassButton);
+    
+    bypassButton.addMouseListener(this, true);
+    
+    depthLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
+    depthLabel.setText("Depth", juce::dontSendNotification );
+    depthLabel.attachToComponent(&depthSlider, false);
+    addAndMakeVisible(depthLabel);
+    
+    rateLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
+    rateLabel.setText("Rate", juce::dontSendNotification );
+    rateLabel.attachToComponent(&rateSlider, false);
+    addAndMakeVisible(rateLabel);
+    
+    delayTimeLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
+    delayTimeLabel.setText("Delay Time", juce::dontSendNotification );
+    delayTimeLabel.attachToComponent(&delayTimeSlider, false);
+    addAndMakeVisible(delayTimeLabel);
+    
+    feedbackLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
+    feedbackLabel.setText("Feedback", juce::dontSendNotification );
+    feedbackLabel.attachToComponent(&feedbackSlider, false);
+    addAndMakeVisible(feedbackLabel);
+    
+    mixLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
+    mixLabel.setText("Mix", juce::dontSendNotification );
+    mixLabel.attachToComponent(&mixSlider, false);
+    addAndMakeVisible(mixLabel);
+
+    bypassLabel.setColour(juce::Label::textColourId, juce::Colours::whitesmoke);
+    bypassLabel.setText("Bypass", juce::dontSendNotification );
+    bypassLabel.attachToComponent(&bypassButton, false);
+    addAndMakeVisible(bypassLabel);
 
     sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB1", depthSlider));
     sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB2", rateSlider));
@@ -51,14 +73,6 @@ MainComponent::MainComponent(ChorusPedalAudioProcessor& processor)
     buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
     
     bypassButton.addMouseListener(this, false);
-
-    // Set up sliders with labels and attach to AudioProcessorValueTreeState
-//    depthSlider.reset(new CustomSlider("Depth", "KNOB1", audioProcessor.apvts));
-//    rateSlider.reset(new CustomSlider("Rate", "KNOB2", audioProcessor.apvts));
-//    intensitySlider.reset(new CustomSlider("Intensity", "KNOB3", audioProcessor.apvts));
-//    delayTimeSlider.reset(new CustomSlider("Delay Time", "KNOB4", audioProcessor.apvts));
-//    feedbackSlider.reset(new CustomSlider("Feedback", "KNOB5", audioProcessor.apvts));
-//    mixSlider.reset(new CustomSlider("Mix", "KNOB6", audioProcessor.apvts));
 
     bypassButton.setBounds(290, 100, 50, 20);
     addAndMakeVisible(bypassButton);
@@ -74,18 +88,17 @@ void MainComponent::paint (juce::Graphics& g)
         
     g.drawImage(m_pSharedImages->getBackgroundImage(), 0, 0, width, height, 0, 0, 2000, 1400);
     
-    g.setColour (juce::Colours::black);
+    g.setColour (juce::Colours::whitesmoke);
     g.setFont (30.0f);
-    g.drawFittedText ("Mixon Chorus", getLocalBounds().removeFromTop(35), juce::Justification::centred, 1);
+    g.drawFittedText ("Chorus", getLocalBounds().removeFromTop(35), juce::Justification::centred, 1);
 }
 
 void MainComponent::resized()
 {
     depthSlider.setBounds(75, 140, 75, 75);
-    rateSlider.setBounds(210, 80, 75, 75);
-    intensitySlider.setBounds(210, 200, 75, 75);
-    delayTimeSlider.setBounds(315, 80, 75, 75);
-    feedbackSlider.setBounds(315, 200, 75, 75);
+    rateSlider.setBounds(200, 180, 75, 75);
+    delayTimeSlider.setBounds(325, 180, 75, 75);
+    feedbackSlider.setBounds(260, 75, 75, 75);
     mixSlider.setBounds(450, 140, 75, 75);
-    bypassButton.setBounds(275, 165, 50, 20);
+    bypassButton.setBounds(50, 20, 50, 50);
 }

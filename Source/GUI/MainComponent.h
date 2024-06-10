@@ -41,7 +41,9 @@ private:
     BigKnob depthSlider, rateSlider, intensitySlider,
             delayTimeSlider, feedbackSlider, mixSlider;
     
-    HitPads bypassButton;
+    Button bypassButton;
+    
+    juce::Label depthLabel, rateLabel, delayTimeLabel, feedbackLabel, mixLabel, bypassLabel;
     
     std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;
     

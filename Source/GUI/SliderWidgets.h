@@ -22,7 +22,7 @@ public:
     {
         
         setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-        setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
+        setTextBoxStyle (juce::Slider::TextBoxBelow, true, 0, 0);
         
     }
     
@@ -44,6 +44,7 @@ public:
     
     
 private:
+    
     juce::Image& knobImage;
     
     int numFrames = 245;
