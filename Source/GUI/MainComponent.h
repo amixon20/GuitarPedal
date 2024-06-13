@@ -31,6 +31,8 @@ public:
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     
     void paint (juce::Graphics& g) override;
+    
+    void buttonClicked(juce::Button* button);
 
 private:
     

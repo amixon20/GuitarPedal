@@ -29,9 +29,7 @@ MainComponent::MainComponent(ChorusPedalAudioProcessor& processor)
     addAndMakeVisible(delayTimeSlider);
     addAndMakeVisible(feedbackSlider);
     addAndMakeVisible(mixSlider);
-    addAndMakeVisible(bypassButton);
-    
-    bypassButton.addMouseListener(this, true);
+//    addAndMakeVisible(bypassButton);
     
     depthLabel.setColour(juce::Label::textColourId, juce::Colours::lightblue);
     depthLabel.setText("Depth", juce::dontSendNotification );
@@ -70,13 +68,13 @@ MainComponent::MainComponent(ChorusPedalAudioProcessor& processor)
     sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB5", feedbackSlider));
     sliderAttachments.emplace_back(new SliderAttachment(audioProcessor.apvts, "KNOB6", mixSlider));
 
-    buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
+//    buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
     
-    bypassButton.addMouseListener(this, false);
+//    bypassButton.addMouseListener(this, false);
 
-    bypassButton.setBounds(290, 100, 50, 20);
-    addAndMakeVisible(bypassButton);
-    buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
+//    bypassButton.setBounds(290, 100, 50, 20);
+//    addAndMakeVisible(bypassButton);
+//    buttonAttachments.emplace_back(new ButtonAttachment(audioProcessor.apvts, "BUTTON1", bypassButton));
 }
 
 MainComponent::~MainComponent() {}
@@ -100,5 +98,5 @@ void MainComponent::resized()
     delayTimeSlider.setBounds(325, 180, 75, 75);
     feedbackSlider.setBounds(260, 75, 75, 75);
     mixSlider.setBounds(450, 140, 75, 75);
-    bypassButton.setBounds(50, 20, 50, 50);
+//    bypassButton.setBounds(50, 20, 50, 50);
 }

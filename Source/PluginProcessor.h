@@ -10,7 +10,7 @@
 
 #include <JuceHeader.h>
 #include "SharedImages.h"
-#define MAX_DELAY_TIME 0.05
+#define MAX_DELAY_TIME 2
 //==============================================================================
 /**
 */
@@ -60,14 +60,17 @@ public:
     
     float lin_interp(float sample_x, float sample_x1, float inPhase);
     
-
+    float cubic_interp(float y0, float y1, float y2, float y3, float frac);
+    
+    void setBypass(bool bypass) { bypassed = bypass;};
+    
 private:
     
     juce::SharedResourcePointer<SharedImages>     m_pSharedImagesPtr;
     
     juce::AudioProcessorValueTreeState::ParameterLayout createParams();
     
-//    double maxDelay;
+    bool bypassed;
     
     juce::LinearSmoothedValue<float> depth;
     juce::LinearSmoothedValue<float> rate;
@@ -85,6 +88,8 @@ private:
         
     float* ringBufferLeft;
     float* ringBufferRight;
+    
+    
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChorusPedalAudioProcessor)

@@ -54,7 +54,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChorusPedalAudioProcessor::c
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB1", 1}, "Depth", 0.f, 1.f, 0.5));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB2", 2}, "Rate", 0.1f, 10.f, 1.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB2", 2}, "Rate", 0.1f, 5.f, 1.f));
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"KNOB3", 3}, "Intensity", 0.f, 1.f, 0.5));
     
@@ -215,13 +215,6 @@ void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     auto m = apvts.getRawParameterValue("KNOB6")->load() / 100;
     mix.setTargetValue(m);
     
-    bool bypass = *apvts.getRawParameterValue("BUTTON1") > 0.5f ? true : false;
-    
-    if(bypass)
-    {
-        return;
-    }
-    
     float* leftChannel = buffer.getWritePointer(0);
     float* rightChannel = buffer.getWritePointer(1);
     
@@ -250,58 +243,83 @@ void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         float lfoOutRight = sin(2 * M_PI * lfoPhaseRight);
         lfoOutRight *= depth.getNextValue();
         
-        float lfoOutMappedLeft = 0;
-        float lfoOutMappedRight = 0;
-        
         // Updating LFO phase
         lfoPhase += rate.getNextValue() / getSampleRate();
         
-        
-        
-        lfoOutMappedLeft = juce::jmap<float>(lfoOutLeft, -1.f, 1.f, 0.005f, 0.03f);
-        lfoOutMappedRight = juce::jmap<float>(lfoOutRight, -1.f, 1.f, 0.005f, 0.03f);
-        
-        
-        float delayTimeSamplesLeft = getSampleRate() * lfoOutMappedLeft;
-        float delayTimeSamplesRight = getSampleRate() * lfoOutMappedRight;
+        // Calculate delay time in samples (convert from seconds to samples)
+        float delayTimeInSeconds = delayTime.getNextValue();
+        int delayTimeInSamples = delayTimeInSeconds * getSampleRate();
         
         if(lfoPhase > 1) {
             lfoPhase -= 1;
         }
         
+        float modulatedDepthLeft = depth.getNextValue() * lfoOutLeft;// Modulate depth parameter with LFO
+        float modulatedDepthRight = depth.getNextValue() * lfoOutRight;
+        float modulatedDelayTimeLeft = delayTimeInSamples + (delayTimeInSamples * modulatedDepthLeft);
+        float modulatedDelayTimeRight = delayTimeInSamples + (delayTimeInSamples * modulatedDepthRight);
+        
         // Calculating read head for left channel delay sample
-        float delayReadHeadLeft = ringBufferWriteHead - delayTimeSamplesLeft;
+        float delayReadHeadLeft = ringBufferWriteHead - modulatedDelayTimeLeft;
         
         if(delayReadHeadLeft < 0) {
             delayReadHeadLeft += ringBufferLength;
         }
         
         int readHeadLeft_x = (int) delayReadHeadLeft;
+        int readHeadLeft_x0 = readHeadLeft_x - 1;
         int readHeadLeft_x1 = readHeadLeft_x + 1;
+        int readHeadLeft_x2 = readHeadLeft_x + 2;
         float readHeadFloatLeft = delayReadHeadLeft - readHeadLeft_x;
         
         if(readHeadLeft_x1 >= ringBufferLength) {
             readHeadLeft_x1 -= ringBufferLength;
         }
+        if(readHeadLeft_x2 >= ringBufferLength) {
+            readHeadLeft_x2 -= ringBufferLength;
+        }
+        if(readHeadLeft_x0 < 0) {
+            readHeadLeft_x0 += ringBufferLength;
+        }
         
         // Calculating read head for right channel delay sample
-        float delayReadHeadRight = ringBufferWriteHead - delayTimeSamplesRight;
+        float delayReadHeadRight = ringBufferWriteHead - modulatedDelayTimeRight;
         
         if(delayReadHeadRight < 0) {
             delayReadHeadRight += ringBufferLength;
         }
         
         int readHeadRight_x = (int) delayReadHeadRight;
+        int readHeadRight_x0 = readHeadRight_x - 1;
         int readHeadRight_x1 = readHeadRight_x + 1;
+        int readHeadRight_x2 = readHeadRight_x + 2;
         float readHeadFloatRight = delayReadHeadRight - readHeadRight_x;
         
         if(readHeadRight_x1 >= ringBufferLength) {
             readHeadRight_x1 -= ringBufferLength;
         }
+        if(readHeadRight_x2 >= ringBufferLength) {
+            readHeadRight_x2 -= ringBufferLength;
+        }
+        if(readHeadRight_x0 < 0) {
+            readHeadRight_x0 += ringBufferLength;
+        }
         
-        // Interpolating delay samples from current read head positions for both channels
-        float delay_sample_left = lin_interp(ringBufferLeft[readHeadLeft_x], ringBufferLeft[readHeadLeft_x1], readHeadFloatLeft);
-        float delay_sample_right = lin_interp(ringBufferRight[readHeadRight_x], ringBufferRight[readHeadRight_x1], readHeadFloatRight);
+        float delay_sample_left = cubic_interp(
+            ringBufferLeft[readHeadLeft_x0],  // y0_left
+            ringBufferLeft[readHeadLeft_x],      // y1_left
+            ringBufferLeft[readHeadLeft_x1],  // y2_left
+            ringBufferLeft[readHeadLeft_x2],  // y3_left
+            readHeadFloatLeft                    // frac_left
+        );
+
+        float delay_sample_right = cubic_interp(
+            ringBufferRight[readHeadRight_x0],  // y0_right
+            ringBufferRight[readHeadRight_x],      // y1_right
+            ringBufferRight[readHeadRight_x1],  // y2_right
+            ringBufferRight[readHeadRight_x2],  // y3_right
+            readHeadFloatRight                     // frac_right
+        );
         
         // Calculating feedback samples
         feedbackLeft = delay_sample_left * feedback.getNextValue();
@@ -320,8 +338,23 @@ void ChorusPedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         
         buffer.setSample(0, i, buffer.getSample(0, i) * dryAmount + delay_sample_left * wetAmount);
         buffer.setSample(1, i, buffer.getSample(1, i) * dryAmount + delay_sample_right * wetAmount);
+        
+        lfoPhase += lfoRate / getSampleRate();
+        if (lfoPhase >= 1.0f) {
+            lfoPhase -= 1.0f; // Wrap phase back to [0, 1)
+        } 
     }
 }
+float ChorusPedalAudioProcessor::cubic_interp(float y0, float y1, float y2, float y3, float frac) {
+    float a0, a1, a2, a3;
+    float frac2 = frac * frac;
+    a0 = y3 - y2 - y0 + y1;
+    a1 = y0 - y1 - a0;
+    a2 = y2 - y0;
+    a3 = y1;
+    return (a0 * frac * frac2 + a1 * frac2 + a2 * frac + a3);
+}
+
 float ChorusPedalAudioProcessor::lin_interp(float sample_x, float sample_x1, float inPhase)
 {
     return (1 - inPhase) * sample_x + inPhase * sample_x1;
@@ -344,12 +377,27 @@ void ChorusPedalAudioProcessor::getStateInformation (juce::MemoryBlock& destData
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+    
+    auto currentState = apvts.copyState();
+    
+    std::unique_ptr<juce::XmlElement> xml (currentState.createXml());
+    
+    copyXmlToBinary(*xml, destData);
+    
+    
 }
 
 void ChorusPedalAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+    
+    std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary(data, sizeInBytes));
+    
+    juce::ValueTree newTree = juce::ValueTree::fromXml(*xml);
+    
+    apvts.replaceState(newTree);
+    
 }
 
 //==============================================================================
